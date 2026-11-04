@@ -1,11 +1,12 @@
 # NiyamGraph
 
 **Rule-driven Approvals & Compliance Intelligence**  
-*Smart India Hackathon 2026*
+_Smart India Hackathon 2026_
 
 ---
 
 ## 📌 Project Overview
+
 **NiyamGraph** is an intelligent, rule-driven governance and compliance platform designed to streamline, validate, and accelerate the regulatory approval workflows for educational institutions under the purview of AICTE (All India Council for Technical Education). By leveraging automated rule evaluation, transparent verification stages, and audit trails, NiyamGraph eliminates procedural bottlenecks and ensures rigorous compliance adherence.
 
 ---
@@ -13,15 +14,18 @@
 ## 🛠 Technology Stack
 
 ### Frontend
+
 - **Framework & Tooling:** React.js, Vite
 - **Language:** JavaScript
-- **Styling:** Tailwind CSS *(to be configured)*
+- **Styling:** Tailwind CSS _(to be configured)_
 
 ### Backend
+
 - **Framework:** FastAPI
 - **Language:** Python
 
 ### Database
+
 - **Platform:** Supabase PostgreSQL
 
 ---
@@ -140,3 +144,4 @@ To ensure seamless coordination across our five-member engineering team:
 - **Pull Requests (PRs):** Contributors submit pull requests against `main`. Each PR requires peer review, clean lint/build status, and clear descriptions of changes.
 - **Integration & Governance:** Final reviews, merge conflicts resolution, and integration into `main` are handled exclusively by the repository owner to maintain architectural consistency and release stability.
 
+Contribution verification test by Nithish.
