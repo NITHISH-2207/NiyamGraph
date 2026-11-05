@@ -41,6 +41,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# Uploads & Temporary Media
+uploads/
+*.tmp
+*.temp
+
 # Environment Variables & Credential text files
 .env
 .env.*

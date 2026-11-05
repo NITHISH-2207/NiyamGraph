@@ -3,16 +3,22 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-load_dotenv()
+# Load environment from root or backend directory
+if os.path.exists("backend/.env"):
+    load_dotenv("backend/.env")
+else:
+    load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL is missing!")
+# Support development fallback or engine creation
+engine_args = {}
+if DATABASE_URL.startswith("postgresql"):
+    engine_args["pool_pre_ping"] = True
 
 engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True
+    DATABASE_URL if DATABASE_URL else "sqlite:///:memory:",
+    **engine_args
 )
 
 SessionLocal = sessionmaker(
