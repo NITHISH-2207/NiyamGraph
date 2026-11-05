@@ -1,9 +1,40 @@
 /**
  * Centralized Shared API Client
- * Configured with base URL from VITE_API_BASE_URL with graceful fallback.
+ * Configured with dynamic base URL resolution across local and deployed environments.
+ * Strictly adheres to project specification:
+ * - Supports VITE_API_URL and VITE_API_BASE_URL.
+ * - In local dev, defaults to http://localhost:8000/api/v1.
+ * - In production builds, defaults to relative /api/v1 (never falls back to localhost).
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+export function resolveApiBaseUrl(): string {
+  const envUrl = (
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    ''
+  ).trim();
+
+  if (envUrl) {
+    let url = envUrl.replace(/\/+$/, '');
+    if (url.endsWith('/api')) {
+      return `${url}/v1`;
+    }
+    if (!url.endsWith('/api/v1')) {
+      return `${url}/api/v1`;
+    }
+    return url;
+  }
+
+  // Local development fallback
+  if (import.meta.env.DEV) {
+    return 'http://localhost:8000/api/v1';
+  }
+
+  // Production fallback: same-origin relative path (prevents loopback CORS block)
+  return '/api/v1';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
@@ -29,7 +60,14 @@ export const apiClient = {
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { params, headers, ...customConfig } = options;
 
-    let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    let cleanEndpoint = endpoint;
+    if (cleanEndpoint.startsWith('/api/v1')) {
+      cleanEndpoint = cleanEndpoint.substring('/api/v1'.length);
+    }
+
+    let url = endpoint.startsWith('http')
+      ? endpoint
+      : `${API_BASE_URL}${cleanEndpoint.startsWith('/') ? '' : '/'}${cleanEndpoint}`;
 
     if (params) {
       const searchParams = new URLSearchParams();
@@ -44,16 +82,34 @@ export const apiClient = {
       }
     }
 
-    const defaultHeaders: HeadersInit = {
+    // Try reading active token from persisted auth session
+    let token = '';
+    try {
+      const sessionData = localStorage.getItem('niyamgraph_auth_session');
+      if (sessionData) {
+        const parsed = JSON.parse(sessionData);
+        if (parsed?.token) {
+          token = parsed.token;
+        }
+      }
+    } catch {
+      // LocalStorage access failure fallback
+    }
+
+    const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
+
+    if (token) {
+      defaultHeaders['Authorization'] = `Bearer ${token}`;
+    }
 
     const config: RequestInit = {
       ...customConfig,
       headers: {
         ...defaultHeaders,
-        ...headers,
+        ...(headers as Record<string, string>),
       },
     };
 

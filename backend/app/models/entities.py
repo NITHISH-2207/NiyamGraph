@@ -13,8 +13,8 @@ from sqlalchemy import (
     JSON,
     Index,
 )
-from sqlalchemy.orm import relationship
-from app.database.session import Base
+from sqlalchemy.orm import relationship, declarative_base
+Base = declarative_base()
 
 # --- ENUMS ---
 

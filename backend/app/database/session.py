@@ -20,10 +20,18 @@ if DATABASE_URL.startswith("postgres://"):
 elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
+def get_sqlite_fallback_url() -> str:
+    if os.environ.get("VERCEL"):
+        return "sqlite:////tmp/niyamgraph.db"
+    return "sqlite:///./niyamgraph.db"
+
 def initialize_engine(url: str):
+    sqlite_url = get_sqlite_fallback_url()
     if not url or "username:password@host" in url:
-        logger.warning("DATABASE_URL contains placeholder host or is empty. Falling back to local SQLite for development.")
-        return create_engine("sqlite:///./niyamgraph.db", echo=False, connect_args={"check_same_thread": False})
+        logger.warning(
+            f"DATABASE_URL contains placeholder host or is empty. Falling back to SQLite ({sqlite_url}) for development."
+        )
+        return create_engine(sqlite_url, echo=False, connect_args={"check_same_thread": False})
     
     try:
         eng = create_engine(url, pool_pre_ping=True)
@@ -35,9 +43,9 @@ def initialize_engine(url: str):
     except Exception as exc:
         logger.warning(
             f"Unable to connect to primary PostgreSQL database ({exc}). "
-            "Falling back to local SQLite (sqlite:///./niyamgraph.db) so services remain functional."
+            f"Falling back to SQLite ({sqlite_url}) so services remain functional."
         )
-        return create_engine("sqlite:///./niyamgraph.db", echo=False, connect_args={"check_same_thread": False})
+        return create_engine(sqlite_url, echo=False, connect_args={"check_same_thread": False})
 
 engine = initialize_engine(DATABASE_URL)
 
