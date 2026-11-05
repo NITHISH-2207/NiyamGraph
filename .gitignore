@@ -8,6 +8,7 @@ dist/
 dist-ssr/
 build/
 *.local
+.vercel
 
 # Logs
 logs/
@@ -40,10 +41,13 @@ ENV/
 env.bak/
 venv.bak/
 
-# Environment Variables
+# Environment Variables & Credential text files
 .env
 .env.*
 !.env.example
+env.txt
+*env.txt
+*.env.txt
 
 # Testing & Coverage
 coverage/
@@ -67,4 +71,3 @@ htmlcov/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
