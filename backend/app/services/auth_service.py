@@ -252,3 +252,220 @@ def is_token_revoked(db: Session, jti: str) -> bool:
     """Check if token JTI is in revoked_tokens table."""
     return db.query(RevokedToken).filter(RevokedToken.jti == jti).first() is not None
 
+
+# Canonical workspace destinations mapped by AICTE officer role
+OFFICER_ROLE_WORKSPACE_MAP: Dict[str, Dict[str, Any]] = {
+    "AICTE Scrutiny Officer": {
+        "id": "scrutiny",
+        "name": "Scrutiny Portal",
+        "route": "/scrutiny/dashboard",
+        "is_available": True,
+    },
+    "AICTE EVC Officer": {
+        "id": "evc",
+        "name": "EVC Portal",
+        "route": "/aicte/evc/dashboard",
+        "is_available": False,
+    },
+    "AICTE Regional Officer": {
+        "id": "regional",
+        "name": "Regional Portal",
+        "route": "/aicte/regional/dashboard",
+        "is_available": False,
+    },
+    "AICTE Complaints Officer": {
+        "id": "complaints",
+        "name": "Complaints Portal",
+        "route": "/aicte/complaints/dashboard",
+        "is_available": False,
+    },
+    # Backward compatibility mappings
+    "AICTE Official": {
+        "id": "scrutiny",
+        "name": "Scrutiny Portal",
+        "route": "/scrutiny/dashboard",
+        "is_available": True,
+    },
+    "SCRUTINY_OFFICER": {
+        "id": "scrutiny",
+        "name": "Scrutiny Portal",
+        "route": "/scrutiny/dashboard",
+        "is_available": True,
+    },
+    "REGIONAL_OFFICER": {
+        "id": "regional",
+        "name": "Regional Portal",
+        "route": "/aicte/regional/dashboard",
+        "is_available": False,
+    },
+    "Super Administrator": {
+        "id": "scrutiny",
+        "name": "Governance & Scrutiny Administration",
+        "route": "/scrutiny/dashboard",
+        "is_available": True,
+    },
+}
+
+
+def authenticate_official_user(
+    db: Session,
+    identifier: str,
+    password: str,
+    ip_address: Optional[str] = None,
+    request_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Authenticate an AICTE administration officer across the four distinct officer roles:
+    - AICTE Scrutiny Officer
+    - AICTE EVC Officer
+    - AICTE Regional Officer
+    - AICTE Complaints Officer
+
+    Enforces timing protection, account lockouts, active check, Argon2 verification,
+    and returns role-based workspace routing.
+    """
+    clean_identifier = identifier.strip().lower()
+
+    # Rate limit check
+    rate_key = f"{ip_address or 'unknown'}:official:{clean_identifier}"
+    if not check_rate_limit(rate_key):
+        raise UnauthorizedError("Too many login attempts. Please try again in a few moments.")
+
+    generic_error = "Invalid statutory credentials or password."
+    now = datetime.now(timezone.utc)
+
+    # 1. Lookup User by email or ID
+    user = (
+        db.query(User)
+        .filter(func.lower(User.email) == clean_identifier)
+        .first()
+    )
+
+    if not user:
+        verify_dummy_password()
+        log_audit(
+            db=db,
+            action="AUTH_OFFICIAL_LOGIN_USER_NOT_FOUND",
+            entity_type="user",
+            metadata={"identifier": clean_identifier},
+            ip_address=ip_address,
+            request_id=request_id,
+        )
+        raise UnauthorizedError(generic_error)
+
+    # 2. Check lockout status
+    if user.locked_until:
+        if user.locked_until > now:
+            verify_dummy_password()
+            remaining_mins = int((user.locked_until - now).total_seconds() / 60) + 1
+            raise UnauthorizedError(
+                f"Account temporarily locked due to failed attempts. Please try again in {remaining_mins} minutes."
+            )
+        else:
+            user.locked_until = None
+            user.failed_login_attempts = 0
+
+    # 3. Check account active status
+    if not user.is_active:
+        verify_dummy_password()
+        raise UnauthorizedError("Account is inactive. Please contact the system administrator.")
+
+    # 4. Check user roles: Must have an authorized AICTE role
+    user_roles = (
+        db.query(Role.name)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .filter(UserRole.user_id == user.id)
+        .all()
+    )
+    role_names = [r[0] for r in user_roles]
+
+    # Find matching AICTE roles
+    authorized_aicte_roles = [r for r in role_names if r in OFFICER_ROLE_WORKSPACE_MAP]
+
+    if not authorized_aicte_roles:
+        verify_dummy_password()
+        log_audit(
+            db=db,
+            action="AUTH_OFFICIAL_LOGIN_UNAUTHORIZED_ROLE",
+            entity_type="user",
+            entity_id=str(user.id),
+            actor_user_id=user.id,
+            ip_address=ip_address,
+            request_id=request_id,
+        )
+        raise ForbiddenError("User account is not authorized for any AICTE Administration workspace.")
+
+    # 5. Verify password using Argon2
+    if not verify_password(password, user.password_hash):
+        user.failed_login_attempts += 1
+        if user.failed_login_attempts >= settings.LOGIN_MAX_ATTEMPTS:
+            user.locked_until = now + timedelta(minutes=settings.LOGIN_LOCKOUT_MINUTES)
+            log_audit(
+                db=db,
+                action="AUTH_ACCOUNT_LOCKED",
+                entity_type="user",
+                entity_id=str(user.id),
+                actor_user_id=user.id,
+                ip_address=ip_address,
+                request_id=request_id,
+            )
+        else:
+            log_audit(
+                db=db,
+                action="AUTH_OFFICIAL_LOGIN_FAILED_PASSWORD",
+                entity_type="user",
+                entity_id=str(user.id),
+                actor_user_id=user.id,
+                ip_address=ip_address,
+                request_id=request_id,
+            )
+        db.commit()
+        raise UnauthorizedError(generic_error)
+
+    # 6. Reset failed attempts upon successful password check
+    if user.failed_login_attempts > 0 or user.locked_until is not None:
+        user.failed_login_attempts = 0
+        user.locked_until = None
+
+    db.commit()
+
+    # 7. Determine primary role and workspace routing
+    # Specific AICTE roles take precedence over generic AICTE Official
+    primary_role = authorized_aicte_roles[0]
+    for r in ["AICTE Scrutiny Officer", "AICTE EVC Officer", "AICTE Regional Officer", "AICTE Complaints Officer"]:
+        if r in authorized_aicte_roles:
+            primary_role = r
+            break
+
+    workspace = OFFICER_ROLE_WORKSPACE_MAP[primary_role]
+
+    # 8. Issue JWT Token
+    token_data = create_access_token(
+        user_id=str(user.id),
+        role=primary_role,
+        institution_id=None,
+    )
+
+    log_audit(
+        db=db,
+        action="AUTH_OFFICIAL_LOGIN_SUCCESS",
+        entity_type="user",
+        entity_id=str(user.id),
+        actor_user_id=user.id,
+        ip_address=ip_address,
+        request_id=request_id,
+        metadata={"role": primary_role, "workspace": workspace["id"]},
+    )
+
+    return {
+        "access_token": token_data["access_token"],
+        "token_type": "bearer",
+        "expires_in": token_data["expires_in"],
+        "expires_at": token_data["expires_at"],
+        "user": user,
+        "roles": role_names,
+        "primary_role": primary_role,
+        "workspace": workspace,
+    }
+
+

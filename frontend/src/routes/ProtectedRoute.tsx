@@ -1,49 +1,73 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { authConfig } from '../config/authConfig';
-
-export type UserRole =
-  | 'institution_representative'
-  | 'aicte_officer'
-  | 'committee_expert'
-  | 'super_admin';
+import { useAuth } from '@/context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: UserRole | UserRole[];
+  requiredRole?: string | string[];
   loginPath?: string;
 }
 
+const RouteLoader: React.FC = () => (
+  <div
+    className="min-h-[50vh] flex flex-col items-center justify-center p-8 space-y-3"
+    aria-label="Verifying authorization"
+  >
+    <Loader2 className="w-8 h-8 animate-spin text-brand-navy" aria-hidden="true" />
+    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+      Verifying Statutory Authorization...
+    </span>
+  </div>
+);
+
 /**
- * Route protection wrapper.
- * Controlled by VITE_AUTH_GUARD_ENABLED (defaults to false / pass-through during development).
- * When active and unauthenticated, redirects to the designated login path without faking authentication.
+ * Enterprise Role-Based Route Protection Guard
+ * Validates authentication status and strictly enforces workspace role permissions.
+ * Prevents unauthorized cross-portal navigation and URL spoofing.
  */
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredRole,
-  loginPath = '/auth/institution/login',
+  loginPath = '/auth/admin/login',
 }) => {
+  const { session, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  // If auth guard is disabled (default in dev/prototype), pass through directly
-  if (!authConfig.authGuardEnabled) {
-    return <>{children}</>;
+  if (isLoading) {
+    return <RouteLoader />;
   }
 
-  // Auth context interface placeholder (future Supabase Auth / JWT verification)
-  const isAuthenticated = false; // Source of truth: unauthenticated in prototype mode
-
-  if (!isAuthenticated) {
+  // 1. Enforce Authentication
+  if (!isAuthenticated || !session) {
     return (
       <Navigate
         to={loginPath}
-        state={{ from: location.pathname, requiredRole }}
+        state={{ from: location.pathname }}
         replace
       />
     );
   }
 
+  // 2. Enforce Role Segregation
+  if (requiredRole) {
+    const allowed = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    const userRoles = session.roles && session.roles.length > 0 ? session.roles : [session.role];
+
+    const isAuthorized = userRoles.some((r) =>
+      allowed.some((a) => a.toLowerCase() === r.toLowerCase())
+    );
+
+    if (!isAuthorized) {
+      return (
+        <Navigate
+          to="/unauthorized"
+          state={{ attemptedPath: location.pathname, requiredRoles: allowed }}
+          replace
+        />
+      );
+    }
+  }
+
   return <>{children}</>;
 };
-

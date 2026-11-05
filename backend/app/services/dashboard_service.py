@@ -7,6 +7,25 @@ from app.models.compliance import ComplianceSubmission, ComplianceRequirement
 from app.models.notification import Notification
 
 
+STATUS_BUCKET_MAP: Dict[str, str] = {
+    "Approved": "Approved",
+    "Submitted": "Under Review",
+    "Under Scrutiny": "Under Review",
+    "Resubmitted": "Under Review",
+    "Under Evaluation": "Under Review",
+    "Decision Pending": "Under Review",
+    "Deficiency Raised": "Requiring Action",
+    "Draft": "Draft",
+    "Rejected": "Rejected",
+    "Closed": "Closed",
+}
+
+
+def get_status_bucket(status: str) -> str:
+    """Map application status string to its single canonical bucket."""
+    return STATUS_BUCKET_MAP.get(status, "Other")
+
+
 def get_institution_dashboard_summary(
     db: Session,
     institution_id: uuid.UUID,

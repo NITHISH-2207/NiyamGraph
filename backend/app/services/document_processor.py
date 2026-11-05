@@ -1,7 +1,11 @@
 import os
 import hashlib
 import io
-import fitz  # PyMuPDF
+try:
+    import fitz  # PyMuPDF
+except ImportError:
+    fitz = None
+
 from typing import Dict, Any, Tuple
 
 try:
@@ -19,6 +23,9 @@ class DocumentProcessorService:
         """
         Extract text from PDF pages with explicit [Page N] markers for regulatory evidence ledger.
         """
+        if fitz is None:
+            return "PDF extraction engine (PyMuPDF) not installed.", {"page_count": 0, "is_scanned": False}
+
         doc = fitz.open(stream=file_bytes, filetype="pdf")
         page_count = len(doc)
         extracted_pages = []
