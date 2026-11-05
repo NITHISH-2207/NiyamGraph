@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.core.config import settings
 from app.database import get_db
+from app.database.init_db import seed_database
 from app.middleware import setup_cors, RequestIdMiddleware, register_error_handlers
 from app.api.v1.router import api_router
 
@@ -19,7 +20,7 @@ logger = logging.getLogger("niyamgraph.main")
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
-    description="NiyamGraph - Rule-driven Approvals & Compliance Intelligence (AICTE / SIH 2026)",
+    description="NiyamGraph - AICTE Statutory Approval & Scrutiny Engine API",
     docs_url="/docs" if settings.DOCS_ENABLED else None,
     redoc_url="/redoc" if settings.DOCS_ENABLED else None,
     openapi_url="/openapi.json" if settings.DOCS_ENABLED else None,
@@ -34,9 +35,15 @@ setup_cors(app)
 # 3. Register Centralized Error Handlers
 register_error_handlers(app)
 
-# 4. Include API v1 Router
+# 4. Include API v1 Router (Mounts both Institution Portal and Scrutiny Desk)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
+@app.on_event("startup")
+def on_startup():
+    try:
+        seed_database()
+    except Exception as exc:
+        logger.info(f"Startup database seeding notice: {exc}")
 
 # Health Check Endpoints
 @app.get(
@@ -51,7 +58,6 @@ def root_health():
         "app": settings.PROJECT_NAME,
         "environment": settings.ENVIRONMENT,
     }
-
 
 @app.get(
     "/db-health",
@@ -75,3 +81,12 @@ def database_health(db: Session = Depends(get_db)):
                 "database": "disconnected",
             },
         )
+
+@app.get("/")
+def root():
+    return {
+        "project": "NiyamGraph Rule-Aware Scrutiny & Regulatory Compliance Engine",
+        "status": "online",
+        "api_docs": "/docs",
+        "endpoints": f"{settings.API_V1_STR}/scrutiny/dashboard"
+    }

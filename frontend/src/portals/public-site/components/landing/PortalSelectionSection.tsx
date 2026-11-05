@@ -173,7 +173,7 @@ export const PortalSelectionSection: React.FC = () => {
             {/* Bottom Button Action */}
             <div className="pt-8">
               <span className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm font-semibold rounded-md bg-brand-navy text-white group-hover:bg-brand-navy-dark transition-colors shadow-xs">
-                <span>Official Login</span>
+                <span>Official Scrutiny Login</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
               </span>
             </div>

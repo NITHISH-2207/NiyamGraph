@@ -19,6 +19,32 @@ from app.models.compliance import (
 from app.models.notification import Notification
 from app.models.audit import AuditLog
 
+# Import Scrutiny Entities
+from app.models.entities import (
+    SystemRoleEnum,
+    ApplicationStatusEnum,
+    DeficiencyStatusEnum,
+    FindingCategoryEnum,
+    OfficerDecisionEnum,
+    DocumentExtractionStatusEnum,
+    RegionalOffice,
+    ApplicationAssignment,
+    ApplicationDocument,
+    DocumentVersion,
+    RegulatoryRule,
+    RegulatoryRuleVersion,
+    RuleApplicability,
+    ScrutinyRun,
+    ScrutinyFinding,
+    ScrutinyReview,
+    DeficiencyNotice,
+    DeficiencyItem,
+    DeficiencyResponse,
+    ResubmissionBatch,
+    WorkflowEvent,
+    AIProcessingLog,
+)
+
 __all__ = [
     "Base",
     "Role",
@@ -41,5 +67,26 @@ __all__ = [
     "ComplianceVerificationHistory",
     "Notification",
     "AuditLog",
+    "SystemRoleEnum",
+    "ApplicationStatusEnum",
+    "DeficiencyStatusEnum",
+    "FindingCategoryEnum",
+    "OfficerDecisionEnum",
+    "DocumentExtractionStatusEnum",
+    "RegionalOffice",
+    "ApplicationAssignment",
+    "ApplicationDocument",
+    "DocumentVersion",
+    "RegulatoryRule",
+    "RegulatoryRuleVersion",
+    "RuleApplicability",
+    "ScrutinyRun",
+    "ScrutinyFinding",
+    "ScrutinyReview",
+    "DeficiencyNotice",
+    "DeficiencyItem",
+    "DeficiencyResponse",
+    "ResubmissionBatch",
+    "WorkflowEvent",
+    "AIProcessingLog",
 ]
-

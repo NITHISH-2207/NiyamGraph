@@ -92,6 +92,14 @@ export const apiClient = {
     });
   },
 
+  patch<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  },
+
   put<T>(endpoint: string, body?: unknown, options?: RequestOptions): Promise<T> {
     return this.request<T>(endpoint, {
       ...options,
@@ -104,4 +112,3 @@ export const apiClient = {
     return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   },
 };
-
