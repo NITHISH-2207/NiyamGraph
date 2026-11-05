@@ -1,0 +1,46 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans);
+  }
+
+  /* Accessibility focus ring */
+  *:focus-visible {
+    outline: 2px solid var(--color-brand-blue);
+    outline-offset: 2px;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Splash screen emblem reveal keyframe */
+@keyframes emblemFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-emblem {
+  animation: emblemFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

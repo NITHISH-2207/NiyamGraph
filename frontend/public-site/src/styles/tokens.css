@@ -1,0 +1,29 @@
+:root {
+  /* Central Brand Design Tokens */
+  --color-brand-navy: #183B5D;
+  --color-brand-navy-dark: #102A45;
+  --color-brand-navy-deep: #0C1E30;
+  --color-brand-blue: #245B82;
+  --color-brand-blue-hover: #1E4E70;
+  --color-brand-gold: #C5A45E;
+  --color-brand-gold-light: #E0C78E;
+  --color-brand-bg: #F4F6F9;
+  --color-brand-surface: #FFFFFF;
+  --color-brand-secondary: #718096;
+  --color-brand-border: #E2E8F0;
+  --color-brand-border-subtle: #EDF2F7;
+  
+  /* Status Semantics */
+  --color-brand-success: #16A34A;
+  --color-brand-warning: #D97706;
+  --color-brand-error: #DC2626;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Shadows - subtle and institutional only */
+  --shadow-subtle: 0 1px 3px 0 rgba(16, 42, 69, 0.05), 0 1px 2px 0 rgba(16, 42, 69, 0.03);
+  --shadow-card: 0 4px 6px -1px rgba(16, 42, 69, 0.06), 0 2px 4px -1px rgba(16, 42, 69, 0.03);
+  --shadow-card-hover: 0 10px 15px -3px rgba(16, 42, 69, 0.08), 0 4px 6px -2px rgba(16, 42, 69, 0.04);
+}
+
