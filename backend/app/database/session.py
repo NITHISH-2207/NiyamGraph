@@ -6,7 +6,11 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 logger = logging.getLogger("niyamgraph.db")
 
-load_dotenv()
+# Load environment from root or backend directory
+if os.path.exists("backend/.env"):
+    load_dotenv("backend/.env")
+else:
+    load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
