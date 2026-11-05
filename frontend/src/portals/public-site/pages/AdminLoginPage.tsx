@@ -1,34 +1,28 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { AuthFormField } from '@/components/auth/AuthFormField';
 import { PasswordInput } from '@/components/auth/PasswordInput';
-import { MfaVerificationView } from '@/components/auth/MfaVerificationView';
-import { adminIdentifierConfig } from '@/config/identifierConfig';
 import { authService } from '@/services/authService';
-import { UserCheck, Loader2, AlertCircle, HelpCircle, ShieldCheck } from 'lucide-react';
+import { Mail, Loader2, AlertCircle, HelpCircle, UserPlus, Zap } from 'lucide-react';
 
 export const AdminLoginPage: React.FC = () => {
-  const [officialId, setOfficialId] = useState('');
-  const [password, setPassword] = useState('');
+  const navigate = useNavigate();
+  const [officialId, setOfficialId] = useState('scrutiny@gmail.com');
+  const [password, setPassword] = useState('Scrutiny@123');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [showMfaView, setShowMfaView] = useState(false);
 
   const validate = () => {
     const errs: { [key: string]: string } = {};
 
     if (!officialId.trim()) {
-      errs.officialId = 'Official User ID or regulatory email is required.';
-    } else if (officialId.trim().length < 4) {
-      errs.officialId = 'User ID must be at least 4 characters.';
+      errs.officialId = 'Statutory email or official ID is required.';
     }
 
     if (!password) {
       errs.password = 'Password is required.';
-    } else if (password.length < 8) {
-      errs.password = 'Official statutory passwords must be at least 8 characters.';
     }
 
     setErrors(errs);
@@ -48,13 +42,13 @@ export const AdminLoginPage: React.FC = () => {
         password,
       });
 
-      if (!result.success) {
-        setServerError(
-          result.errorMessage || 'Sign-in is currently unavailable. Please try again later.'
-        );
+      if (result.success) {
+        navigate('/scrutiny/dashboard');
+      } else {
+        setServerError(result.errorMessage || 'Sign-in failed. Please check credentials.');
       }
     } catch {
-      setServerError('Sign-in is currently unavailable. Please try again later.');
+      setServerError('Sign-in service is currently unavailable.');
     } finally {
       setIsSubmitting(false);
     }
@@ -63,19 +57,39 @@ export const AdminLoginPage: React.FC = () => {
   return (
     <AuthLayout
       portalType="admin"
-      portalTitle="AICTE Administration"
-      leftHeading="Governance. Oversight. Accountability."
-      leftSupportingText="A centralized workspace for application processing, regulatory administration and institutional compliance monitoring."
+      portalTitle="AICTE Scrutiny Portal"
+      leftHeading="Evidence-Based Scrutiny. Transparent Governance."
+      leftSupportingText="A unified workspace for examining institutional applications, validating statutory documents, and communicating regulatory deficiencies."
       benefits={[
-        'Stage-gated application processing across all 7 regional zones',
-        'Expert Visit Committee (EVC) & scrutiny panel management',
-        'Statutory decision recording & digital approval seal issuance',
-        'Continuous compliance audits & pendency SLA escalation alerts',
+        'Automated document text extraction with page citations',
+        'Deterministic & AI comparison against APH 2026-27 norms',
+        'Traceable deficiency notice issuance with 15-day cure window',
+        'Side-by-side textual diff highlighting institutional corrections',
       ]}
       rightHeading="Official Sign In"
-      rightSupportingText="Access your assigned administrative workspace."
+      rightSupportingText="Enter your official statutory credentials to continue."
     >
-      {/* Inline Form Error - only displayed upon submit failure, never on page load */}
+      {/* Demo Credentials Pill */}
+      <div className="p-3 rounded-lg bg-blue-50/90 border border-blue-200/80 flex items-center justify-between text-xs text-brand-navy">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-brand-gold shrink-0" aria-hidden="true" />
+          <span className="font-medium">
+            Demo: <strong className="text-brand-blue">scrutiny@gmail.com</strong> / <strong className="text-brand-blue">Scrutiny@123</strong>
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setOfficialId('scrutiny@gmail.com');
+            setPassword('Scrutiny@123');
+          }}
+          className="px-2 py-0.5 rounded bg-brand-navy text-white text-[11px] font-semibold hover:bg-brand-navy-dark transition-colors shadow-xs"
+        >
+          Autofill
+        </button>
+      </div>
+
+      {/* Inline Form Error */}
       {serverError && (
         <div
           className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-800 flex items-start gap-2.5 animate-in fade-in"
@@ -86,93 +100,84 @@ export const AdminLoginPage: React.FC = () => {
         </div>
       )}
 
-      {/* Conditional Rendering: Credentials Entry vs MFA Screen */}
-      {showMfaView ? (
-        <MfaVerificationView
-          officialId={officialId || 'official.admin@aicte.gov.in'}
-          onBack={() => setShowMfaView(false)}
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+        {/* Field 1: Official Identifier */}
+        <AuthFormField
+          id="officialId"
+          label="Official Email / Statutory ID"
+          placeholder="scrutiny@gmail.com"
+          helperText="Enter your registered scrutiny official email"
+          value={officialId}
+          onChange={(e) => {
+            setOfficialId(e.target.value);
+            if (errors.officialId) setErrors((prev) => ({ ...prev, officialId: '' }));
+          }}
+          error={errors.officialId}
+          icon={<Mail className="w-4 h-4" aria-hidden="true" />}
+          autoComplete="username"
         />
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          {/* Field 1: Official Identifier */}
-          <AuthFormField
-            id="officialId"
-            label={adminIdentifierConfig.label}
-            placeholder={adminIdentifierConfig.placeholder}
-            helperText={adminIdentifierConfig.helperText}
-            value={officialId}
-            onChange={(e) => {
-              setOfficialId(e.target.value);
-              if (errors.officialId) setErrors((prev) => ({ ...prev, officialId: '' }));
-            }}
-            error={errors.officialId}
-            icon={<UserCheck className="w-4 h-4" aria-hidden="true" />}
-            autoComplete="username"
-          />
 
-          {/* Field 2: Password */}
-          <PasswordInput
-            id="adminPassword"
-            label="Administrative Password"
-            placeholder="••••••••••••"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
-            }}
-            error={errors.password}
-            autoComplete="current-password"
-          />
+        {/* Field 2: Password */}
+        <PasswordInput
+          id="adminPassword"
+          label="Password"
+          placeholder="Scrutiny@123"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+          }}
+          error={errors.password}
+          autoComplete="current-password"
+        />
 
-          {/* Forgot Password and Help */}
-          <div className="flex items-center justify-between text-xs pt-1">
-            <Link
-              to="/support"
-              className="text-slate-500 hover:text-brand-blue inline-flex items-center gap-1"
-            >
-              <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
-              <span>Nodal Desk Help</span>
-            </Link>
+        {/* Forgot Password and Help */}
+        <div className="flex items-center justify-between text-xs pt-1">
+          <Link
+            to="/support"
+            className="text-slate-500 hover:text-brand-blue inline-flex items-center gap-1"
+          >
+            <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
+            <span>Support Desk</span>
+          </Link>
 
-            <Link
-              to="/auth/forgot-password"
-              className="text-brand-navy font-semibold hover:text-brand-blue underline underline-offset-2"
-            >
-              Forgot password?
-            </Link>
-          </div>
+          <Link
+            to="/auth/forgot-password"
+            className="text-brand-navy font-semibold hover:text-brand-blue underline underline-offset-2"
+          >
+            Forgot password?
+          </Link>
+        </div>
 
-          {/* Submit Button */}
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md bg-brand-navy text-white text-sm font-semibold hover:bg-brand-navy-dark focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                  <span>Authenticating Statutory Officer...</span>
-                </>
-              ) : (
-                <span>Secure Sign In</span>
-              )}
-            </button>
-          </div>
+        {/* Submit Button */}
+        <div className="pt-2">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-md bg-brand-navy text-white text-sm font-semibold hover:bg-brand-navy-dark focus:outline-none focus:ring-2 focus:ring-brand-navy focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                <span>Signing In...</span>
+              </>
+            ) : (
+              <span>Sign In to Scrutiny Desk</span>
+            )}
+          </button>
+        </div>
 
-          {/* Interactive Toggle for MFA Demonstration */}
-          <div className="pt-3 text-center">
-            <button
-              type="button"
-              onClick={() => setShowMfaView(true)}
-              className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-brand-blue font-medium transition-colors"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-brand-gold" aria-hidden="true" />
-              <span>Simulate Multi-Factor Authentication (MFA) Screen</span>
-            </button>
-          </div>
-        </form>
-      )}
+        {/* Registration Link */}
+        <div className="pt-3 text-center border-t border-slate-100">
+          <Link
+            to="/auth/scrutiny/signup"
+            className="inline-flex items-center gap-1.5 text-xs text-brand-navy font-semibold hover:text-brand-blue transition-colors"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-brand-gold" aria-hidden="true" />
+            <span>New Scrutiny Officer? Register / Sign Up</span>
+          </Link>
+        </div>
+      </form>
     </AuthLayout>
   );
 };
