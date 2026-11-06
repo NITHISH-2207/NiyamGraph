@@ -1,8 +1,10 @@
 /**
  * Modular Authentication Service Contract & API Adapter
- * Integrated with FastAPI backend /api/v1/auth and demo resilience.
+ * Connects directly to FastAPI backend (/api/v1/auth) using Bearer tokens.
+ * Handles unified AICTE Administration Login, role-based workspace routing,
+ * and Institution Portal authentication.
  */
-import { apiClient } from './apiClient';
+import { apiClient, ApiError } from './apiClient';
 
 export interface InstitutionLoginCredentials {
   institutionId: string;
@@ -31,17 +33,35 @@ export interface MfaVerificationPayload {
   challengeId?: string;
 }
 
+export interface WorkspaceDestination {
+  id: string;
+  name: string;
+  route: string;
+  isAvailable?: boolean;
+}
+
 export interface AuthSession {
   userId: string;
-  officialId: string;
-  fullName: string;
-  designation: string;
   email: string;
+  displayName: string;
+  fullName?: string;
+  role: string;
   roles: string[];
-  regionalOfficeId: string;
+  primaryRole?: string;
   portalRedirectUrl: string;
-  token: string;
-  tokenExpiresAt: number;
+  workspace?: WorkspaceDestination;
+  token?: string;
+  tokenExpiresAt?: number;
+
+  // Institution-specific
+  institutionId?: string;
+  institutionName?: string;
+  institutionIdentifier?: string;
+
+  // AICTE Official-specific
+  officialId?: string;
+  designation?: string;
+  regionalOfficeId?: string;
 }
 
 export interface AuthResult {
@@ -50,6 +70,50 @@ export interface AuthResult {
   challengeId?: string;
   session?: AuthSession;
   errorMessage?: string;
+}
+
+export interface BackendTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  expires_at: string;
+  user: {
+    id: string;
+    email: string;
+    full_name?: string;
+    is_active: boolean;
+  };
+  role: string;
+  institution?: {
+    id: string;
+    identifier: string;
+    official_name: string;
+    institution_type: string;
+    regional_office: string;
+    state: string;
+    status: string;
+  };
+}
+
+export interface BackendOfficialTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  expires_at: string;
+  user: {
+    id: string;
+    email: string;
+    full_name?: string;
+    is_active: boolean;
+  };
+  roles: string[];
+  primary_role: string;
+  workspace: {
+    id: string;
+    name: string;
+    route: string;
+    is_available: boolean;
+  };
 }
 
 const STORAGE_KEY = 'niyamgraph_auth_session';
@@ -73,78 +137,141 @@ export class FastAPIAuthAdapter {
     }
   }
 
-  logout() {
-    localStorage.removeItem(STORAGE_KEY);
-    window.location.href = '/';
-  }
-
-  async loginInstitution(_credentials: InstitutionLoginCredentials): Promise<AuthResult> {
-    return {
-      success: false,
-      errorMessage: 'Institution Portal is under active development by Team Dev 4. Please sign in via AICTE Official Portal.',
-    };
-  }
-
-  async loginAdmin(credentials: AdminLoginCredentials): Promise<AuthResult> {
-    const id = credentials.officialId.trim().toLowerCase();
-    
-    // Direct instant validation for requested credentials
-    if ((id === 'scrutiny@gmail.com' || id === 'scrutiny') && (credentials.password === 'Scrutiny@123' || credentials.password.length >= 6)) {
-      const session: AuthSession = {
-        userId: 'USR-SCRUTINY-01',
-        officialId: 'SO-2026-CH01',
-        fullName: 'Dr. Rajeshwar Sharma',
-        designation: 'Senior Scrutiny Officer & Technical Evaluator',
-        email: 'scrutiny@gmail.com',
-        roles: ['SCRUTINY_OFFICER'],
-        regionalOfficeId: 'RO-SOUTH (Chennai)',
-        portalRedirectUrl: '/scrutiny/dashboard',
-        token: `jwt-token-niyamgraph-USR-SCRUTINY-01`,
-        tokenExpiresAt: Date.now() + 24 * 3600 * 1000,
-      };
-      this.setCurrentSession(session);
-      return { success: true, session };
-    }
-
+  async logout(): Promise<void> {
     try {
-      const response = await apiClient.post<any>('/auth/login', {
-        official_id: credentials.officialId.trim(),
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Ignore network errors during logout
+    } finally {
+      apiClient.clearToken();
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
+    }
+  }
+
+  /**
+   * Authenticate Institution User via FastAPI (/api/v1/auth/institution/login)
+   */
+  async loginInstitution(credentials: InstitutionLoginCredentials): Promise<AuthResult> {
+    try {
+      const response = await apiClient.post<BackendTokenResponse>('/auth/institution/login', {
+        institution_id: credentials.institutionId.trim(),
+        email: credentials.email.trim(),
         password: credentials.password,
       });
 
+      if (!response.access_token) {
+        return {
+          success: false,
+          errorMessage: 'Invalid authentication response received from server.',
+        };
+      }
+
+      apiClient.setToken(response.access_token);
+
       const session: AuthSession = {
-        userId: response.user_id,
-        officialId: response.official_id,
-        fullName: response.full_name,
-        designation: response.designation,
-        email: credentials.officialId.includes('@') ? credentials.officialId.toLowerCase() : `${response.official_id.toLowerCase()}@aicte.gov.in`,
-        roles: response.roles || ['SCRUTINY_OFFICER'],
-        regionalOfficeId: response.regional_office_id || 'RO-SOUTH (Chennai)',
-        portalRedirectUrl: '/scrutiny/dashboard',
-        token: response.token,
-        tokenExpiresAt: Date.now() + 24 * 3600 * 1000,
+        userId: response.user.id,
+        email: response.user.email,
+        displayName: response.user.full_name || response.user.email.split('@')[0],
+        fullName: response.user.full_name,
+        role: response.role,
+        roles: [response.role],
+        primaryRole: response.role,
+        institutionId: response.institution?.id,
+        institutionName: response.institution?.official_name,
+        institutionIdentifier: response.institution?.identifier,
+        portalRedirectUrl: '/institution/dashboard',
+        token: response.access_token,
+        tokenExpiresAt: Date.now() + (response.expires_in || 86400) * 1000,
       };
 
       this.setCurrentSession(session);
-      return { success: true, session };
-    } catch {
-      // Fallback
-      const isScrutiny = id.includes('scrutiny') || id.includes('so') || !id.includes('ro');
+      return {
+        success: true,
+        session,
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const errorData = error.data as { detail?: string; error?: { message?: string } } | undefined;
+        const msg =
+          errorData?.detail ||
+          errorData?.error?.message ||
+          'Invalid institution ID, email or password.';
+        return {
+          success: false,
+          errorMessage: msg,
+        };
+      }
+      return {
+        success: false,
+        errorMessage: 'Unable to connect to authentication service. Please verify your network.',
+      };
+    }
+  }
+
+  /**
+   * Authenticate AICTE Administration Officer via FastAPI (/api/v1/auth/official/login)
+   * Routing is database role-driven, NEVER email substring matched.
+   */
+  async loginAdmin(credentials: AdminLoginCredentials): Promise<AuthResult> {
+    try {
+      const response = await apiClient.post<BackendOfficialTokenResponse>('/auth/official/login', {
+        identifier: credentials.officialId.trim(),
+        password: credentials.password,
+      });
+
+      if (!response.access_token) {
+        return {
+          success: false,
+          errorMessage: 'Invalid authentication response received from server.',
+        };
+      }
+
+      apiClient.setToken(response.access_token);
+
       const session: AuthSession = {
-        userId: isScrutiny ? 'USR-SCRUTINY-01' : 'USR-RO-01',
+        userId: response.user.id,
+        email: response.user.email,
+        displayName: response.user.full_name || response.user.email.split('@')[0],
+        fullName: response.user.full_name,
         officialId: credentials.officialId.trim(),
-        fullName: isScrutiny ? 'Dr. Rajeshwar Sharma' : 'Smt. Meenakshi Sundaram',
-        designation: isScrutiny ? 'Senior Scrutiny Officer & Technical Evaluator' : 'Regional Director (Southern Region)',
-        email: isScrutiny ? 'scrutiny@gmail.com' : 'regional.officer@aicte.gov.in',
-        roles: isScrutiny ? ['SCRUTINY_OFFICER'] : ['REGIONAL_OFFICER'],
-        regionalOfficeId: 'RO-SOUTH (Chennai)',
-        portalRedirectUrl: '/scrutiny/dashboard',
-        token: `demo-token-${Date.now()}`,
-        tokenExpiresAt: Date.now() + 24 * 3600 * 1000,
+        designation: response.primary_role,
+        role: response.primary_role,
+        roles: response.roles || [response.primary_role],
+        primaryRole: response.primary_role,
+        regionalOfficeId: 'RO-CENTRAL',
+        portalRedirectUrl: response.workspace?.route || '/scrutiny/dashboard',
+        workspace: {
+          id: response.workspace?.id || 'scrutiny',
+          name: response.workspace?.name || 'Scrutiny Portal',
+          route: response.workspace?.route || '/scrutiny/dashboard',
+          isAvailable: response.workspace?.is_available ?? true,
+        },
+        token: response.access_token,
+        tokenExpiresAt: Date.now() + (response.expires_in || 86400) * 1000,
       };
 
       this.setCurrentSession(session);
-      return { success: true, session };
+      return {
+        success: true,
+        session,
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const errorData = error.data as { detail?: string; error?: { message?: string } } | undefined;
+        const msg =
+          errorData?.detail ||
+          errorData?.error?.message ||
+          'Invalid official credentials or password.';
+        return {
+          success: false,
+          errorMessage: msg,
+        };
+      }
+      return {
+        success: false,
+        errorMessage: 'Unable to connect to AICTE authentication service. Please verify your network.',
+      };
     }
   }
 
@@ -162,10 +289,13 @@ export class FastAPIAuthAdapter {
       const session: AuthSession = {
         userId: res.user_id,
         officialId: res.official_id,
+        displayName: res.full_name,
         fullName: res.full_name,
         designation: res.designation,
         email: payload.email,
-        roles: res.roles || ['SCRUTINY_OFFICER'],
+        role: 'AICTE Scrutiny Officer',
+        roles: res.roles || ['AICTE Scrutiny Officer'],
+        primaryRole: 'AICTE Scrutiny Officer',
         regionalOfficeId: res.regional_office_id || 'RO-SOUTH',
         portalRedirectUrl: '/scrutiny/dashboard',
         token: res.token,
@@ -175,21 +305,10 @@ export class FastAPIAuthAdapter {
       this.setCurrentSession(session);
       return { success: true, session };
     } catch {
-      // Local session creation fallback
-      const session: AuthSession = {
-        userId: `USR-${Date.now().toString(36).toUpperCase()}`,
-        officialId: payload.officialId,
-        fullName: payload.fullName,
-        designation: payload.designation || 'Scrutiny Officer',
-        email: payload.email,
-        roles: ['SCRUTINY_OFFICER'],
-        regionalOfficeId: payload.regionalOfficeId || 'RO-SOUTH (Chennai)',
-        portalRedirectUrl: '/scrutiny/dashboard',
-        token: `token-${Date.now()}`,
-        tokenExpiresAt: Date.now() + 24 * 3600 * 1000,
+      return {
+        success: false,
+        errorMessage: 'Registration failed. Please contact your system administrator.',
       };
-      this.setCurrentSession(session);
-      return { success: true, session };
     }
   }
 
@@ -197,11 +316,58 @@ export class FastAPIAuthAdapter {
     return this.loginAdmin({ officialId: payload.officialId, password: 'mfa_verified' });
   }
 
-  async requestPasswordReset(_identifier: string): Promise<{ success: boolean; message: string }> {
-    return {
-      success: true,
-      message: 'Password reset instructions dispatched to statutory nodal officer.',
-    };
+  async requestPasswordReset(identifier: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await apiClient.post('/auth/forgot-password', { identifier });
+      return {
+        success: true,
+        message: 'Password reset instructions have been dispatched to your verified email.',
+      };
+    } catch {
+      return {
+        success: true,
+        message: 'If an active account matches the supplied identifier, reset instructions have been dispatched.',
+      };
+    }
+  }
+
+  async getCurrentUser(): Promise<AuthSession | null> {
+    const cached = this.getCurrentSession();
+    const token = apiClient.getToken();
+    if (!token && !cached) return null;
+
+    try {
+      const meData = await apiClient.get<{
+        user: { id: string; email: string; full_name?: string; is_active: boolean };
+        role: string;
+        institution?: { id: string; identifier: string; official_name: string; status: string };
+      }>('/auth/me');
+
+      if (!meData.user || !meData.user.is_active) {
+        this.logout();
+        return null;
+      }
+
+      const session: AuthSession = {
+        ...(cached || {}),
+        userId: meData.user.id,
+        email: meData.user.email,
+        displayName: meData.user.full_name || meData.user.email.split('@')[0],
+        fullName: meData.user.full_name,
+        role: meData.role,
+        roles: cached?.roles && cached.roles.length > 0 ? cached.roles : [meData.role],
+        primaryRole: meData.role,
+        institutionId: meData.institution?.id,
+        institutionName: meData.institution?.official_name,
+        institutionIdentifier: meData.institution?.identifier,
+        portalRedirectUrl: cached?.portalRedirectUrl || (meData.institution ? '/institution/dashboard' : '/scrutiny/dashboard'),
+      };
+
+      this.setCurrentSession(session);
+      return session;
+    } catch {
+      return cached;
+    }
   }
 }
 

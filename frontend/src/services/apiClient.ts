@@ -52,9 +52,34 @@ export class ApiError extends Error {
   }
 }
 
+let inMemoryToken: string | null =
+  localStorage.getItem('niyamgraph_jwt_token') ||
+  sessionStorage.getItem('niyamgraph_jwt_token') ||
+  null;
+
 export const apiClient = {
   getBaseUrl(): string {
     return API_BASE_URL;
+  },
+
+  getToken(): string | null {
+    if (!inMemoryToken) {
+      inMemoryToken =
+        localStorage.getItem('niyamgraph_jwt_token') ||
+        sessionStorage.getItem('niyamgraph_jwt_token');
+    }
+    return inMemoryToken;
+  },
+
+  setToken(token: string) {
+    inMemoryToken = token;
+    localStorage.setItem('niyamgraph_jwt_token', token);
+  },
+
+  clearToken() {
+    inMemoryToken = null;
+    localStorage.removeItem('niyamgraph_jwt_token');
+    sessionStorage.removeItem('niyamgraph_jwt_token');
   },
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
@@ -122,6 +147,11 @@ export const apiClient = {
       } catch {
         errorData = await response.text();
       }
+
+      if (response.status === 401) {
+        window.dispatchEvent(new CustomEvent('niyamgraph:session-expired'));
+      }
+
       throw new ApiError(
         `API request failed with status ${response.status}`,
         response.status,

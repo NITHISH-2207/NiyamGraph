@@ -151,3 +151,14 @@ def require_roles(allowed_roles: List[str]):
         return ctx
     return role_checker
 
+
+def require_official_roles(allowed_roles: List[str]):
+    """Role-based authorization dependency for AICTE administration officers (no institution link required)."""
+    def role_checker(ctx: AuthenticatedContext = Depends(get_current_user_context)) -> AuthenticatedContext:
+        if ctx.role not in allowed_roles:
+            raise ForbiddenError(
+                f"Role '{ctx.role}' does not have permission for this resource. Required: {', '.join(allowed_roles)}."
+            )
+        return ctx
+    return role_checker
+

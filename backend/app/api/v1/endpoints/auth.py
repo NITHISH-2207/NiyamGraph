@@ -1,16 +1,70 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from app.database.session import get_db
-from app.schemas.auth import InstitutionLoginRequest, TokenResponse, UserResponse
+from app.schemas.auth import (
+    InstitutionLoginRequest,
+    TokenResponse,
+    UserResponse,
+    OfficialLoginRequest,
+    OfficialTokenResponse,
+)
 from app.api.deps import (
     get_request_id,
     get_client_ip,
     get_current_user_context,
     AuthenticatedContext,
 )
-from app.services.auth_service import authenticate_institution_user, revoke_token
+from app.services.auth_service import (
+    authenticate_institution_user,
+    authenticate_official_user,
+    revoke_token,
+)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+@router.post(
+    "/official/login",
+    response_model=OfficialTokenResponse,
+    summary="AICTE Officer Login",
+    description="Authenticate an AICTE officer (Scrutiny, EVC, Regional, Complaints) and return role-based workspace routing.",
+)
+def login_official(
+    payload: OfficialLoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    req_id: str = Depends(get_request_id),
+    ip_addr: str = Depends(get_client_ip),
+):
+    return authenticate_official_user(
+        db=db,
+        identifier=payload.identifier,
+        password=payload.password,
+        ip_address=ip_addr,
+        request_id=req_id,
+    )
+
+
+@router.post(
+    "/admin/login",
+    response_model=OfficialTokenResponse,
+    summary="AICTE Admin / Officer Login (Alias)",
+    include_in_schema=False,
+)
+def login_admin(
+    payload: OfficialLoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    req_id: str = Depends(get_request_id),
+    ip_addr: str = Depends(get_client_ip),
+):
+    return authenticate_official_user(
+        db=db,
+        identifier=payload.identifier,
+        password=payload.password,
+        ip_address=ip_addr,
+        request_id=req_id,
+    )
 
 
 @router.post(

@@ -48,3 +48,30 @@ class TokenResponse(BaseModel):
     role: str
     institution: InstitutionMinimalResponse
 
+
+class OfficialLoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    identifier: str = Field(..., description="Statutory official email or official User ID")
+    password: str = Field(..., min_length=1, description="Password")
+
+
+class WorkspaceInfo(BaseModel):
+    id: str
+    name: str
+    route: str
+    is_available: bool = True
+
+
+class OfficialTokenResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    expires_at: str
+    user: UserResponse
+    roles: list[str]
+    primary_role: str
+    workspace: WorkspaceInfo
+

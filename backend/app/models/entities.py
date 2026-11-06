@@ -14,7 +14,9 @@ from sqlalchemy import (
     Index,
 )
 from sqlalchemy.orm import relationship, declarative_base
-Base = declarative_base()
+
+ScrutinyBase = declarative_base()
+Base = ScrutinyBase
 
 # --- ENUMS ---
 

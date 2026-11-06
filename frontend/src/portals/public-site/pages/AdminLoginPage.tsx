@@ -3,13 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { AuthFormField } from '@/components/auth/AuthFormField';
 import { PasswordInput } from '@/components/auth/PasswordInput';
-import { authService } from '@/services/authService';
-import { Mail, Loader2, AlertCircle, HelpCircle, UserPlus, Zap } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { AicteDemoCredentialsCard } from '@/components/auth/AicteDemoCredentialsCard';
+import { Mail, Loader2, AlertCircle, HelpCircle } from 'lucide-react';
 
 export const AdminLoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const [officialId, setOfficialId] = useState('scrutiny@gmail.com');
-  const [password, setPassword] = useState('Scrutiny@123');
+  const { loginAdmin } = useAuth();
+  const [officialId, setOfficialId] = useState('');
+  const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -37,18 +39,20 @@ export const AdminLoginPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const result = await authService.loginAdmin({
+      const result = await loginAdmin({
         officialId: officialId.trim(),
         password,
       });
 
-      if (result.success) {
-        navigate('/scrutiny/dashboard');
+      if (result.success && result.session) {
+        // Automatic role-based workspace destination returned by the backend
+        const destination = result.session.portalRedirectUrl || '/scrutiny/dashboard';
+        navigate(destination, { replace: true });
       } else {
-        setServerError(result.errorMessage || 'Sign-in failed. Please check credentials.');
+        setServerError(result.errorMessage || 'Sign-in failed. Please check your credentials.');
       }
     } catch {
-      setServerError('Sign-in service is currently unavailable.');
+      setServerError('Sign-in service is currently unavailable. Please verify your connection.');
     } finally {
       setIsSubmitting(false);
     }
@@ -57,38 +61,18 @@ export const AdminLoginPage: React.FC = () => {
   return (
     <AuthLayout
       portalType="admin"
-      portalTitle="AICTE Scrutiny Portal"
-      leftHeading="Evidence-Based Scrutiny. Transparent Governance."
-      leftSupportingText="A unified workspace for examining institutional applications, validating statutory documents, and communicating regulatory deficiencies."
+      portalTitle="AICTE Administration Portal"
+      leftHeading="Centralized Regulatory Governance"
+      leftSupportingText="A unified, role-governed administration gateway for AICTE Scrutiny Officers, Expert Visit Committees (EVC), Regional Offices, and Complaints Desks."
       benefits={[
-        'Automated document text extraction with page citations',
-        'Deterministic & AI comparison against APH 2026-27 norms',
-        'Traceable deficiency notice issuance with 15-day cure window',
-        'Side-by-side textual diff highlighting institutional corrections',
+        'Automated document scrutiny & deterministic APH 2026-27 norm verification',
+        'Expert Visit Committee (EVC) panel coordination & digital verification',
+        'Regional office jurisdiction workloads, scrutiny SLAs & escalation queues',
+        'Centralized institutional grievance redressal & statutory compliance monitoring',
       ]}
       rightHeading="Official Sign In"
-      rightSupportingText="Enter your official statutory credentials to continue."
+      rightSupportingText="Sign in with your assigned statutory account to access your regulatory workspace."
     >
-      {/* Demo Credentials Pill */}
-      <div className="p-3 rounded-lg bg-blue-50/90 border border-blue-200/80 flex items-center justify-between text-xs text-brand-navy">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-brand-gold shrink-0" aria-hidden="true" />
-          <span className="font-medium">
-            Demo: <strong className="text-brand-blue">scrutiny@gmail.com</strong> / <strong className="text-brand-blue">Scrutiny@123</strong>
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            setOfficialId('scrutiny@gmail.com');
-            setPassword('Scrutiny@123');
-          }}
-          className="px-2 py-0.5 rounded bg-brand-navy text-white text-[11px] font-semibold hover:bg-brand-navy-dark transition-colors shadow-xs"
-        >
-          Autofill
-        </button>
-      </div>
-
       {/* Inline Form Error */}
       {serverError && (
         <div
@@ -104,9 +88,9 @@ export const AdminLoginPage: React.FC = () => {
         {/* Field 1: Official Identifier */}
         <AuthFormField
           id="officialId"
-          label="Official Email / Statutory ID"
-          placeholder="scrutiny@gmail.com"
-          helperText="Enter your registered scrutiny official email"
+          label="Official Email / Statutory User ID"
+          placeholder="e.g. test.official@aicte.gov.in"
+          helperText="Enter your registered AICTE administrative email or officer ID"
           value={officialId}
           onChange={(e) => {
             setOfficialId(e.target.value);
@@ -121,7 +105,7 @@ export const AdminLoginPage: React.FC = () => {
         <PasswordInput
           id="adminPassword"
           label="Password"
-          placeholder="Scrutiny@123"
+          placeholder="Enter official password"
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);
@@ -131,21 +115,14 @@ export const AdminLoginPage: React.FC = () => {
           autoComplete="current-password"
         />
 
-        {/* Forgot Password and Help */}
+        {/* Support Link */}
         <div className="flex items-center justify-between text-xs pt-1">
           <Link
             to="/support"
             className="text-slate-500 hover:text-brand-blue inline-flex items-center gap-1"
           >
             <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Support Desk</span>
-          </Link>
-
-          <Link
-            to="/auth/forgot-password"
-            className="text-brand-navy font-semibold hover:text-brand-blue underline underline-offset-2"
-          >
-            Forgot password?
+            <span>Need assistance? Contact Regulatory Support</span>
           </Link>
         </div>
 
@@ -159,24 +136,23 @@ export const AdminLoginPage: React.FC = () => {
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                <span>Signing In...</span>
+                <span>Verifying Officer Credentials...</span>
               </>
             ) : (
-              <span>Sign In to Scrutiny Desk</span>
+              <span>Sign In to AICTE Workspace</span>
             )}
           </button>
         </div>
 
-        {/* Registration Link */}
-        <div className="pt-3 text-center border-t border-slate-100">
-          <Link
-            to="/auth/scrutiny/signup"
-            className="inline-flex items-center gap-1.5 text-xs text-brand-navy font-semibold hover:text-brand-blue transition-colors"
-          >
-            <UserPlus className="w-3.5 h-3.5 text-brand-gold" aria-hidden="true" />
-            <span>New Scrutiny Officer? Register / Sign Up</span>
-          </Link>
-        </div>
+        {/* Four Distinct AICTE Officer Demo Credentials */}
+        <AicteDemoCredentialsCard
+          onAutofill={(autofillEmail, autofillPassword) => {
+            setOfficialId(autofillEmail);
+            setPassword(autofillPassword);
+            if (errors.officialId) setErrors((prev) => ({ ...prev, officialId: '' }));
+            if (errors.password) setErrors((prev) => ({ ...prev, password: '' }));
+          }}
+        />
       </form>
     </AuthLayout>
   );
