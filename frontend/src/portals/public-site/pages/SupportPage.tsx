@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { apiClient } from '@/services/apiClient';
 import {
   HelpCircle,
   ChevronDown,
@@ -176,7 +177,7 @@ export const SupportPage: React.FC = () => {
 
             <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5">
               <p className="font-bold text-slate-800">Statutory Nodal Integration</p>
-              <p>Simulated API Gateway: <code>localhost:8000/api/v1</code></p>
+              <p>Active API Gateway: <code>{apiClient.getBaseUrl()}</code></p>
               <p className="text-slate-500">Supabase RLS &amp; FastAPI Validation Pipeline</p>
             </div>
           </div>

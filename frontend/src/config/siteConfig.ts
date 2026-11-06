@@ -1,3 +1,5 @@
+import { resolveApiBaseUrl } from '@/services/apiClient';
+
 export interface NavItem {
   label: string;
   href: string;
@@ -34,7 +36,7 @@ export const siteConfig: SiteConfig = {
     'A unified digital platform for AICTE approval workflows, institutional compliance and transparent administrative monitoring.',
   regulatoryAuthority: 'Statutory Regulatory Authority • Technical Education Governance',
   version: import.meta.env.VITE_APP_VERSION || '1.0.0',
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
+  apiBaseUrl: resolveApiBaseUrl(),
   paths: {
     institutionPortal: '/institution',
     aictePortal: '/admin',

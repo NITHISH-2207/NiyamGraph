@@ -27,16 +27,19 @@ class Settings(BaseSettings):
 
     # CORS Configuration
     ALLOWED_ORIGINS: str = Field(
-        default="http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+        default="http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,https://niyamgraph.vercel.app"
     )
+    BACKEND_CORS_ORIGINS: Optional[str] = Field(default=None)
 
     # Documentation
     DOCS_ENABLED: bool = Field(default=True)
     LOG_LEVEL: str = Field(default="INFO")
 
-    # Storage Backend
+    # Storage Backend (uses /tmp on Vercel serverless environment)
     STORAGE_BACKEND: str = Field(default="local")
-    STORAGE_LOCAL_PATH: str = Field(default="uploads")
+    STORAGE_LOCAL_PATH: str = Field(
+        default="/tmp/uploads" if os.getenv("VERCEL") else "uploads"
+    )
     MAX_UPLOAD_SIZE_MB: int = Field(default=10)
     ALLOWED_FILE_EXTENSIONS: str = Field(default="pdf,png,jpg,jpeg")
 
@@ -45,11 +48,30 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> List[str]:
-        return [
-            origin.strip()
-            for origin in self.ALLOWED_ORIGINS.split(",")
-            if origin.strip()
+        raw_list = []
+        if self.ALLOWED_ORIGINS:
+            raw_list.extend(self.ALLOWED_ORIGINS.split(","))
+        if self.BACKEND_CORS_ORIGINS:
+            raw_list.extend(self.BACKEND_CORS_ORIGINS.split(","))
+
+        # Always include required production and development origins
+        mandatory = [
+            "https://niyamgraph.vercel.app",
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
         ]
+        raw_list.extend(mandatory)
+
+        # De-duplicate while preserving cleanliness
+        seen = set()
+        cleaned = []
+        for origin in raw_list:
+            item = origin.strip().rstrip("/")
+            if item and item not in seen:
+                seen.add(item)
+                cleaned.append(item)
+        return cleaned
 
     @property
     def allowed_extensions_list(self) -> List[str]:
