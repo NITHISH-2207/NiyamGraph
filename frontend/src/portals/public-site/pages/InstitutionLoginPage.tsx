@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { AuthFormField } from '@/components/auth/AuthFormField';
 import { PasswordInput } from '@/components/auth/PasswordInput';
+import { DemoCredentialsCard } from '@/components/auth/DemoCredentialsCard';
 import { institutionIdentifierConfig } from '@/config/identifierConfig';
 import { authService } from '@/services/authService';
 import { Building2, Mail, Loader2, AlertCircle, HelpCircle } from 'lucide-react';
@@ -179,6 +180,9 @@ export const InstitutionLoginPage: React.FC = () => {
             )}
           </button>
         </div>
+
+        {/* Demo Credentials Card */}
+        <DemoCredentialsCard />
       </form>
     </AuthLayout>
   );

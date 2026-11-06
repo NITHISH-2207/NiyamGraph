@@ -1,6 +1,7 @@
 /**
  * Centralized Shared API Client
  * Configured with base URL from VITE_API_BASE_URL with graceful fallback.
+ * Automatically injects Bearer JWT authorization token from active session.
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
@@ -21,15 +22,42 @@ export class ApiError extends Error {
   }
 }
 
+let inMemoryToken: string | null =
+  localStorage.getItem('niyamgraph_jwt_token') ||
+  sessionStorage.getItem('niyamgraph_jwt_token') ||
+  null;
+
 export const apiClient = {
   getBaseUrl(): string {
     return API_BASE_URL;
   },
 
+  getToken(): string | null {
+    if (!inMemoryToken) {
+      inMemoryToken =
+        localStorage.getItem('niyamgraph_jwt_token') ||
+        sessionStorage.getItem('niyamgraph_jwt_token');
+    }
+    return inMemoryToken;
+  },
+
+  setToken(token: string) {
+    inMemoryToken = token;
+    localStorage.setItem('niyamgraph_jwt_token', token);
+  },
+
+  clearToken() {
+    inMemoryToken = null;
+    localStorage.removeItem('niyamgraph_jwt_token');
+    sessionStorage.removeItem('niyamgraph_jwt_token');
+  },
+
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { params, headers, ...customConfig } = options;
 
-    let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+    let url = endpoint.startsWith('http')
+      ? endpoint
+      : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
 
     if (params) {
       const searchParams = new URLSearchParams();
@@ -44,16 +72,21 @@ export const apiClient = {
       }
     }
 
-    const defaultHeaders: HeadersInit = {
+    const defaultHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
+
+    const token = this.getToken();
+    if (token) {
+      defaultHeaders['Authorization'] = `Bearer ${token}`;
+    }
 
     const config: RequestInit = {
       ...customConfig,
       headers: {
         ...defaultHeaders,
-        ...headers,
+        ...(headers as Record<string, string>),
       },
     };
 
@@ -66,6 +99,11 @@ export const apiClient = {
       } catch {
         errorData = await response.text();
       }
+
+      if (response.status === 401) {
+        window.dispatchEvent(new CustomEvent('niyamgraph:session-expired'));
+      }
+
       throw new ApiError(
         `API request failed with status ${response.status}`,
         response.status,
