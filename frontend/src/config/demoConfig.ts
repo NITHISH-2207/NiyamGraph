@@ -17,19 +17,20 @@ export interface DemoCredentialsConfig {
 }
 
 const rawShow = import.meta.env.VITE_SHOW_DEMO_CREDENTIALS;
-const showFlag = rawShow === 'true';
+const showFlag = rawShow === undefined || rawShow === '' ? true : rawShow === 'true';
 
-// Read values from environment, providing standard demonstration defaults when demo mode is enabled
+// Read values from environment, providing standard demonstration defaults
 const demoId = (
-  import.meta.env.VITE_DEMO_INSTITUTION_ID || (showFlag ? 'TEST-PID-1-93821094' : '')
+  import.meta.env.VITE_DEMO_INSTITUTION_ID || 'TEST-PID-1-93821094'
 ).trim();
 
 const demoEmail = (
-  import.meta.env.VITE_DEMO_EMAIL || (showFlag ? 'test.admin@apex.edu.in' : '')
+  import.meta.env.VITE_DEMO_EMAIL || 'test.admin@apex.edu.in'
 ).trim();
 
-// Password is sourced strictly from environment variable VITE_DEMO_PASSWORD
-const demoPassword = (import.meta.env.VITE_DEMO_PASSWORD || '').trim();
+const demoPassword = (
+  import.meta.env.VITE_DEMO_PASSWORD || 'YourTestPassword123!'
+).trim();
 
 // Compute list of missing variables for diagnostics
 const missing: string[] = [];
