@@ -60,6 +60,11 @@ const DashboardPage = lazy(() =>
     default: m.DashboardPage,
   }))
 );
+const SubmitApplicationPage = lazy(() =>
+  import('@/portals/institution-portal/pages/SubmitApplicationPage').then((m) => ({
+    default: m.SubmitApplicationPage,
+  }))
+);
 
 // AICTE Scrutiny Portal
 const ScrutinyLayout = lazy(() =>
@@ -131,7 +136,7 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<Navigate to="/institution/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="applications" element={<DashboardPage />} />
-          <Route path="submit-application" element={<DashboardPage />} />
+          <Route path="submit-application" element={<SubmitApplicationPage />} />
           <Route path="deficiencies" element={<DashboardPage />} />
           <Route path="documents" element={<DashboardPage />} />
           <Route path="progress" element={<DashboardPage />} />

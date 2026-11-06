@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { AuthFormField } from '@/components/auth/AuthFormField';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { DemoCredentialsCard } from '@/components/auth/DemoCredentialsCard';
 import { institutionIdentifierConfig } from '@/config/identifierConfig';
-import { authService } from '@/services/authService';
+import { useAuth } from '@/context/AuthContext';
 import { Building2, Mail, Loader2, AlertCircle, HelpCircle } from 'lucide-react';
 
 export const InstitutionLoginPage: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
   const [institutionId, setInstitutionId] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,13 +55,20 @@ export const InstitutionLoginPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const result = await authService.loginInstitution({
+      const result = await login({
         institutionId: institutionId.trim(),
         email: email.trim(),
         password,
       });
 
-      if (!result.success) {
+      if (result.success && result.session) {
+        const from = (location.state as { from?: string })?.from;
+        const destination =
+          from && from.startsWith('/institution')
+            ? from
+            : (result.session.portalRedirectUrl || '/institution/dashboard');
+        navigate(destination, { replace: true });
+      } else {
         setServerError(
           result.errorMessage || 'Sign-in is currently unavailable. Please try again later.'
         );
