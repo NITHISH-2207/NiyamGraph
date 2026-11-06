@@ -1,0 +1,14 @@
+"""
+Vercel Serverless Function entry point when Root Directory is set to 'backend'.
+"""
+import sys
+import os
+
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+from app.main import app
+
+__all__ = ["app"]
+
