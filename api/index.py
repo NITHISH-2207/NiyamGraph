@@ -15,3 +15,4 @@ from app.main import app
 
 # Vercel's Python runtime discovers 'app' ASGI instance
 __all__ = ["app"]
+
